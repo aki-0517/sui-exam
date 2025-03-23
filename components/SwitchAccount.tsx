@@ -1,7 +1,7 @@
 // components/SwitchAccount.tsx
 'use client';
 import React from 'react';
-import { ConnectButton, useAccounts, useSwitchAccount } from '@mysten/dapp-kit';
+import { useAccounts, useSwitchAccount } from '@mysten/dapp-kit';
 
 const SwitchAccount = () => {
   const accounts = useAccounts();
@@ -9,8 +9,7 @@ const SwitchAccount = () => {
 
   return (
     <section style={{ marginBottom: '2rem' }}>
-      <h2>Switch Account</h2>
-      <ConnectButton />
+      <h3>Switch Account</h3>
       {accounts.length > 0 ? (
         <ul>
           {accounts.map((account) => (

@@ -9,6 +9,7 @@ import SwitchAccount from '../components/SwitchAccount';
 // import dynamic from 'next/dynamic';
 import Faucet from '@/components/Faucet';
 import Link from 'next/link';
+import ContractTester from '../components/ContractTester';
 
 // const WalrusDemo = dynamic(() => import('../components/WalrusDemo'), { ssr: false });
 
@@ -17,10 +18,10 @@ export default function Home() {
     <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
       <h1>Sui dApp Kit Demo</h1>
       <ConnectWallet />
+      <SwitchAccount />
       <NetworkSelector />
       <QueryData />
       <TransactionDemo />
-      <SwitchAccount />
       <Faucet />
       <p>
         <Link href="/wormhole">
@@ -28,6 +29,7 @@ export default function Home() {
         </Link>
       </p>
       {/* <WalrusDemo /> */}
+      <ContractTester />
     </main>
   );
 }

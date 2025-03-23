@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ConnectButton,
   useCurrentAccount,
   useSignAndExecuteTransaction,
   useSignTransaction,
@@ -87,7 +86,6 @@ const TransactionDemo = () => {
   return (
     <section style={{ marginBottom: '2rem' }}>
       <h2>Transaction Demo</h2>
-      <ConnectButton />
       {currentAccount ? (
         <div>
           <button
