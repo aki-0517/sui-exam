@@ -6,6 +6,11 @@ import NetworkSelector from '../components/NetworkSelector';
 import QueryData from '../components/QueryData';
 import TransactionDemo from '../components/TransactionDemo';
 import SwitchAccount from '../components/SwitchAccount';
+// import dynamic from 'next/dynamic';
+import Faucet from '@/components/Faucet';
+import Link from 'next/link';
+
+// const WalrusDemo = dynamic(() => import('../components/WalrusDemo'), { ssr: false });
 
 export default function Home() {
   return (
@@ -16,6 +21,13 @@ export default function Home() {
       <QueryData />
       <TransactionDemo />
       <SwitchAccount />
+      <Faucet />
+      <p>
+        <Link href="/wormhole">
+          Go to Wormhole Connect Demo →
+        </Link>
+      </p>
+      {/* <WalrusDemo /> */}
     </main>
   );
 }
