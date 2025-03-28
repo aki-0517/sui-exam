@@ -2,192 +2,245 @@
 
 import React, { useState } from 'react';
 import {
-  ConnectButton,
   useCurrentAccount,
   useSignAndExecuteTransaction,
+  useSuiClient,
 } from '@mysten/dapp-kit';
-import { TransactionBlock, JsonRpcProvider, Connection } from '@mysten/sui.js';
-import { toBase64 } from '@mysten/sui/utils';
+import { Transaction } from '@mysten/sui/transactions';
 
 const PACKAGE_ID =
-  '0x38df011cc9734a23e89b5a94e60e7ba6bd17d37a6d40acb231acfda68c4fc364';
+  "0x9b0f6257b3c75f5bdfc252b20d3a8199da5465f968d429bceabe9b916af36560";
+const NFT_TYPE = `${PACKAGE_ID}::devnet_nft::DevNetNFT`;
 
-const connection = new Connection({ fullnode: 'https://fullnode.devnet.sui.io' });
-const provider = new JsonRpcProvider(connection);
-
-export default function ContractTester() {
-  const currentAccount = useCurrentAccount();
-  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [nfts, setNFTs] = useState<any[]>([]);
-
-  // NFTのMint処理（devnet_nft::mint）
-  const handleMintNFT = async () => {
-    if (!currentAccount) {
-      setStatus('ウォレットを接続してください。');
-      return;
+// 補助関数: MoveStruct（または MoveValue）を { [key: string]: string } に変換
+function parseMeta(fields: any): { [key: string]: string } | undefined {
+  if (Array.isArray(fields)) {
+    return undefined;
+  }
+  if (fields && typeof fields === 'object' && 'fields' in fields) {
+    const obj = fields.fields;
+    const result: { [key: string]: string } = {};
+    for (const key in obj) {
+      const value = obj[key];
+      result[key] = typeof value === 'string' ? value : JSON.stringify(value);
     }
-    setLoading(true);
-    setStatus(null);
-    try {
-      const tx = new TransactionBlock();
-      // 送信者を設定
-      tx.setSender(currentAccount.address);
+    return result;
+  }
+  if (fields && typeof fields === 'object') {
+    const result: { [key: string]: string } = {};
+    for (const key in fields) {
+      const value = fields[key];
+      result[key] = typeof value === 'string' ? value : JSON.stringify(value);
+    }
+    return result;
+  }
+  return undefined;
+}
 
-      // devnet_nft モジュールの mint 関数を呼び出してNFTを発行
+export default function NFTOperations() {
+  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const currentAccount = useCurrentAccount();
+  const client = useSuiClient();
+
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [url, setUrl] = useState('');
+  const [txResult, setTxResult] = useState<any>(null);
+  const [nftList, setNftList] = useState<any[]>([]);
+  const [detailedNFTs, setDetailedNFTs] = useState<any[]>([]);
+  // 選択されたNFTの objectId を保持
+  const [selectedNFT, setSelectedNFT] = useState<string | null>(null);
+
+  // NFT作成（mint）の呼び出し
+  const handleMint = async () => {
+    try {
+      const tx = new Transaction();
       tx.moveCall({
         target: `${PACKAGE_ID}::devnet_nft::mint`,
         arguments: [
-          tx.pure("Test NFT"),           // NFT名
-          tx.pure("This is a test NFT."),  // 説明
-          tx.pure("https://example.com/nft.png"), // 画像URL
+          tx.pure.string(name),
+          tx.pure.string(description),
+          tx.pure.string(url),
         ],
       });
-
-      // プロバイダーを渡してトランザクションをビルド（Uint8Array）し、Base64文字列に変換
-      const txBytes = await tx.build({ provider });
-      const serializedTx = toBase64(txBytes);
-
-      signAndExecuteTransaction(
-        {
-          transaction: serializedTx,
-          chain: 'sui:devnet',
-        },
-        {
-          onSuccess: (result) => {
-            setStatus(`NFTの発行に成功しました。トランザクションダイジェスト: ${result.digest}`);
-          },
-          onError: (error) => {
-            console.error('Mint NFT error:', error);
-            setStatus('NFTの発行に失敗しました: ' + (error.message || 'Unknown error'));
-          },
-        }
-      );
-    } catch (error: any) {
-      console.error('Mint NFT error:', error);
-      setStatus('NFTの発行に失敗しました: ' + (error.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
+      const result = await signAndExecuteTransaction({ transaction: tx });
+      setTxResult(result);
+    } catch (error) {
+      console.error("Mint error:", error);
     }
   };
 
-  // NFTのTransfer処理（devnet_nft::transfer）
-  const handleTransferNFT = async () => {
-    if (!currentAccount) {
-      setStatus('ウォレットを接続してください。');
+  // 選択したNFTのdescription更新の呼び出し
+  const handleUpdateDescription = async () => {
+    if (!selectedNFT) {
+      console.error("NFTが選択されていません");
       return;
     }
-    const recipient = prompt('転送先のアドレスを入力してください:');
-    if (!recipient) {
-      setStatus('転送先アドレスが必要です。');
-      return;
-    }
-    const nftId = prompt('転送するNFTのオブジェクトIDを入力してください:');
-    if (!nftId) {
-      setStatus('NFTオブジェクトIDが必要です。');
-      return;
-    }
-    setLoading(true);
-    setStatus(null);
     try {
-      const tx = new TransactionBlock();
-      tx.setSender(currentAccount.address);
+      // 更新する新しいdescription（ここは固定値ですが、必要に応じて入力フィールドなどで動的に設定可能）
+      const newDescription = "New description from UI";
+      const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::devnet_nft::transfer`,
-        arguments: [tx.object(nftId), tx.pure(recipient)],
+        target: `${PACKAGE_ID}::devnet_nft::update_description`,
+        arguments: [
+          tx.object(selectedNFT),
+          tx.pure.string(newDescription),
+        ],
       });
-      const txBytes = await tx.build({ provider });
-      const serializedTx = toBase64(txBytes);
-      signAndExecuteTransaction(
-        {
-          transaction: serializedTx,
-          chain: 'sui:devnet',
-        },
-        {
-          onSuccess: (result) => {
-            setStatus(`NFTの転送に成功しました。トランザクションダイジェスト: ${result.digest}`);
-          },
-          onError: (error) => {
-            console.error('Transfer NFT error:', error);
-            setStatus('NFTの転送に失敗しました: ' + (error.message || 'Unknown error'));
-          },
-        }
-      );
-    } catch (error: any) {
-      console.error('Transfer NFT error:', error);
-      setStatus('NFTの転送に失敗しました: ' + (error.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
+      const result = await signAndExecuteTransaction({ transaction: tx });
+      setTxResult(result);
+    } catch (error) {
+      console.error("Update description error:", error);
     }
   };
 
-  // NFTの読み込み処理
-  const handleFetchNFTs = async () => {
-    if (!currentAccount) {
-      setStatus('ウォレットを接続してください。');
+  // 選択したNFTのburn（削除）の呼び出し
+  const handleBurn = async () => {
+    if (!selectedNFT) {
+      console.error("NFTが選択されていません");
       return;
     }
-    setLoading(true);
-    setStatus(null);
     try {
-      // 自身の所有オブジェクトから、DevNetNFT 型のものを取得
-      const ownedObjectsResponse = await provider.getOwnedObjects({
-        owner: currentAccount.address,
-        filter: {
-          StructType: `${PACKAGE_ID}::devnet_nft::DevNetNFT`,
-        },
-        options: { showContent: true },
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::devnet_nft::burn`,
+        arguments: [
+          tx.object(selectedNFT),
+        ],
       });
-      setNFTs(ownedObjectsResponse.data);
-      setStatus('NFTの取得に成功しました。');
-    } catch (error: any) {
-      console.error('Fetch NFTs error:', error);
-      setStatus('NFTの取得に失敗しました: ' + (error.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
+      const result = await signAndExecuteTransaction({ transaction: tx });
+      setTxResult(result);
+    } catch (error) {
+      console.error("Burn error:", error);
+    }
+  };
+
+  // 所有しているNFT一覧と詳細情報を取得する
+  const handleFetchNFTs = async () => {
+    try {
+      if (!currentAccount?.address) {
+        console.error("ウォレットが接続されていません");
+        return;
+      }
+      const response = await client.getOwnedObjects({
+        owner: currentAccount.address,
+        filter: { StructType: NFT_TYPE },
+      });
+      const ownedNFTs = response.data;
+      setNftList(ownedNFTs);
+
+      const details = await Promise.all(
+        ownedNFTs.map(async (nft, index) => {
+          const objectId = nft.data?.objectId;
+          if (!objectId) return null;
+          const detailRes = await client.getObject({
+            id: objectId,
+            options: {
+              showContent: true,
+              showDisplay: true,
+            },
+          });
+          let meta: { [key: string]: string } | undefined;
+          if (detailRes.data?.display?.data) {
+            meta = detailRes.data.display.data as { [key: string]: string };
+          } else if (
+            detailRes.data?.content &&
+            detailRes.data.content.dataType === 'moveObject'
+          ) {
+            meta = parseMeta(detailRes.data.content.fields);
+          }
+          return {
+            objectId,
+            version: nft.data?.version,
+            digest: nft.data?.digest,
+            name: meta?.name,
+            description: meta?.description,
+            url: meta?.url,
+          };
+        })
+      );
+      setDetailedNFTs(details.filter((item) => item !== null));
+    } catch (error) {
+      console.error("Error fetching NFTs:", error);
     }
   };
 
   return (
-    <section style={{ margin: '2rem 0', padding: '1rem', border: '1px solid #ccc' }}>
-      <h2>Contract Tester</h2>
-      <p>
-        以下の各ボタンをクリックして、コントラクトの各機能（NFTの発行、転送、取得、更新、Burn）を試すことができます。
-      </p>
-      <ConnectButton />
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-        <button onClick={handleMintNFT} disabled={loading} style={{ padding: '0.5rem 1rem' }}>
-          {loading ? 'Processing...' : 'Mint NFT'}
-        </button>
-        <button onClick={handleTransferNFT} disabled={loading} style={{ padding: '0.5rem 1rem' }}>
-          {loading ? 'Processing...' : 'Transfer NFT'}
-        </button>
-        <button onClick={handleFetchNFTs} disabled={loading} style={{ padding: '0.5rem 1rem' }}>
-          {loading ? 'Processing...' : 'Fetch My NFTs'}
-        </button>
-      </div>
-      {status && <p style={{ marginTop: '1rem' }}>{status}</p>}
-      <div style={{ marginTop: '1rem' }}>
-        {nfts.length > 0 && <h3>My NFTs:</h3>}
-        {nfts.map((nft) => {
-          const content = nft.data.content;
-          const fields = content && content.fields;
-          return (
-            <div key={nft.data.objectId} style={{ border: '1px solid #ccc', padding: '0.5rem', marginBottom: '0.5rem' }}>
-              <p>
-                <strong>Name:</strong> {fields?.name}
-              </p>
-              <p>
-                <strong>Description:</strong> {fields?.description}
-              </p>
-              {fields?.url && (
-                <img src={fields.url} alt={fields.name} style={{ maxWidth: '200px' }} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </section>
+    <div style={{ padding: '20px' }}>
+      <h1>DevNet NFT Operations</h1>
+      <section style={{ marginBottom: '20px' }}>
+        <h2>Mint NFT</h2>
+        <input
+          type="text"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ marginRight: '10px' }}
+        />
+        <input
+          type="text"
+          placeholder="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          style={{ marginRight: '10px' }}
+        />
+        <input
+          type="text"
+          placeholder="URL"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          style={{ marginRight: '10px' }}
+        />
+        <button onClick={handleMint}>Mint NFT</button>
+      </section>
+      <section style={{ marginBottom: '20px' }}>
+        <h2>Update NFT Description</h2>
+        <p>
+          ※updateおよびburnは、下記のNFT一覧から対象のNFTを選択した上で実行してください。
+        </p>
+        <button onClick={handleUpdateDescription}>Update Description</button>
+      </section>
+      <section style={{ marginBottom: '20px' }}>
+        <h2>Burn NFT</h2>
+        <button onClick={handleBurn}>Burn NFT</button>
+      </section>
+      <section style={{ marginBottom: '20px' }}>
+        <h2>Fetch My Minted NFTs</h2>
+        <button onClick={handleFetchNFTs}>Fetch NFTs</button>
+        {detailedNFTs.length > 0 && (
+          <ul>
+            {detailedNFTs.map((nft, index) => (
+              <li
+                key={nft.objectId || `nft-${index}`}
+                style={{
+                  border:
+                    selectedNFT === nft.objectId
+                      ? '2px solid blue'
+                      : '1px solid #ccc',
+                  marginBottom: '10px',
+                  padding: '10px',
+                }}
+              >
+                <div>ID: {nft.objectId}</div>
+                <div>Version: {nft.version}</div>
+                <div>Digest: {nft.digest}</div>
+                <div>Name: {nft.name || '未設定'}</div>
+                <div>Description: {nft.description || '未設定'}</div>
+                <div>URL: {nft.url || '未設定'}</div>
+                <button onClick={() => setSelectedNFT(nft.objectId)}>
+                  {selectedNFT === nft.objectId ? '選択中' : 'Select'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {txResult && (
+        <section>
+          <h3>Transaction Result</h3>
+          <pre>{JSON.stringify(txResult, null, 2)}</pre>
+        </section>
+      )}
+    </div>
   );
 }

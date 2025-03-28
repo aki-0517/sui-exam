@@ -9,14 +9,14 @@ import { getFullnodeUrl } from '@mysten/sui/client';
 const queryClient = new QueryClient();
 
 const { networkConfig } = createNetworkConfig({
-  localnet: { url: getFullnodeUrl('localnet') },
+  devnet: { url: getFullnodeUrl('devnet') },
   mainnet: { url: getFullnodeUrl('mainnet') },
 });
 
 export default function ClientProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networkConfig} defaultNetwork="localnet">
+      <SuiClientProvider networks={networkConfig} defaultNetwork="devnet">
         <WalletProvider>{children}</WalletProvider>
       </SuiClientProvider>
     </QueryClientProvider>
