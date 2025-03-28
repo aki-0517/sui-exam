@@ -45,6 +45,7 @@ export default function NFTOperations() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [updateDescription, setUpdateDescription] = useState('');
   const [txResult, setTxResult] = useState<any>(null);
   const [nftList, setNftList] = useState<any[]>([]);
   const [detailedNFTs, setDetailedNFTs] = useState<any[]>([]);
@@ -76,15 +77,17 @@ export default function NFTOperations() {
       console.error("NFTが選択されていません");
       return;
     }
+    if (!updateDescription) {
+      console.error("更新するDescriptionが入力されていません");
+      return;
+    }
     try {
-      // 更新する新しいdescription（ここは固定値ですが、必要に応じて入力フィールドなどで動的に設定可能）
-      const newDescription = "New description from UI";
       const tx = new Transaction();
       tx.moveCall({
         target: `${PACKAGE_ID}::devnet_nft::update_description`,
         arguments: [
           tx.object(selectedNFT),
-          tx.pure.string(newDescription),
+          tx.pure.string(updateDescription),
         ],
       });
       const result = await signAndExecuteTransaction({ transaction: tx });
@@ -198,6 +201,13 @@ export default function NFTOperations() {
         <p>
           ※updateおよびburnは、下記のNFT一覧から対象のNFTを選択した上で実行してください。
         </p>
+        <input
+          type="text"
+          placeholder="新しいDescriptionを入力"
+          value={updateDescription}
+          onChange={(e) => setUpdateDescription(e.target.value)}
+          style={{ marginRight: '10px' }}
+        />
         <button onClick={handleUpdateDescription}>Update Description</button>
       </section>
       <section style={{ marginBottom: '20px' }}>
